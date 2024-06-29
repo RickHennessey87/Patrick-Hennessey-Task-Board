@@ -13,9 +13,9 @@ function generateTaskId() {
 function createTaskCard(task) {
     const taskCard = $('<div>').addClass('task-card draggable m-3').attr('id', task.id);
     const taskCardBody = $('<div>').addClass('task-card-body');
-    const taskCardTitle = $('<h3>').addClass('task-card-title').text(task.title);
-    const taskCardDescription = $('<p>').addClass('task-card-description').text(task.description);
-    const taskCardDueDate = $('<p>').addClass('task-card-due-date').text(`Due Date: ${dayjs(task.dueDate).format('MMM D, YY')}`);
+    const taskCardTitle = $('<h3>').addClass('task-card-title').text(task.taskTitle);
+    const taskCardDescription = $('<p>').addClass('task-card-description').text(task.taskDescription);
+    const taskCardDueDate = $('<p>').addClass('task-card-due-date').text(`Due Date: ${dayjs(task.taskDueDate).format('MMM D, YY')}`);
     const deleteButton = $('<button>').addClass('btn btn-danger btn-sm').text('Delete Task').on('click', handleDeleteTask);
 
     taskCardBody.append(taskCardTitle, taskCardDescription, taskCardDueDate, deleteButton);
@@ -73,9 +73,8 @@ function handleAddTask(event){
     localStorage.setItem('nextId', JSON.stringify(nextId));
 
     const taskCard = createTaskCard(Task);
-    console.log(taskCard);
-    $('#todo-cards').append(taskCard);
 
+    $('#todo-cards').append(taskCard);
     $('#task-form')[0].reset();
     $('#formModal').modal('hide');
 
@@ -84,7 +83,19 @@ function handleAddTask(event){
 
 // Todo: create a function to handle deleting a task
 function handleDeleteTask(event){
+    event.preventDefault();
 
+    const taskCard = $(event.target).closest('.task-card');
+    const taskId = taskCard.attr('id');
+    const taskIndex = taskList.findIndex(task => task.id === taskId);
+
+    if (taskIndex !== -1) {
+        taskList.splice(taskIndex, 1);
+
+        localStorage.setItem('tasks', JSON.stringify(taskList));
+    }
+
+    taskCard.remove();
 }
 
 // Todo: create a function to handle dropping a task into a new status lane
