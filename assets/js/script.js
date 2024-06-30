@@ -2,36 +2,40 @@
 let taskList = JSON.parse(localStorage.getItem("tasks")) || [];
 let nextId = JSON.parse(localStorage.getItem("nextId")) || 1;
 
-// Todo: create a function to generate a unique task id
-// generateTaskId creates a unique task id for each task incrementally
+// Generate a unique task id
 function generateTaskId() {
-    return nextId++
+    return nextId++;
 }
 
-// Todo: create a function to create a task card
-//createTaskCard creates a new task card from the modal form in the html. 
+// Create a task card
 function createTaskCard(task) {
     const taskCard = $('<div>').addClass('task-card draggable m-3').attr('id', task.id);
     const taskCardBody = $('<div>').addClass('task-card-body');
     const taskCardTitle = $('<h3>').addClass('task-card-title').text(task.taskTitle);
     const taskCardDescription = $('<p>').addClass('task-card-description').text(task.taskDescription);
-    const taskCardDueDate = $('<p>').addClass('task-card-due-date').text(`Due Date: ${dayjs(task.taskDueDate).format('MMM D, YY')}`);
+    const taskCardDueDate = $('<p>').addClass('task-card-due-date').text(`Due Date: ${dayjs(task.taskDueDate).format('DD/MM/YYYY')}`);
     const deleteButton = $('<button>').addClass('btn btn-danger btn-sm').text('Delete Task').on('click', handleDeleteTask);
 
-    taskCardBody.append(taskCardTitle, taskCardDescription, taskCardDueDate, deleteButton);
-    taskCard.append(taskCardBody)
-    taskCard.draggable({
-        revert: 'invalid',
-        stack: 'draggable',
-        cursor: 'move'
-    });
+    if (task.taskDueDate && task.status !== 'done') {
+        const now = dayjs();
+        const taskDueDate = dayjs(task.taskDueDate, 'DD/MM/YYYY');
+    
+        if (now.isSame(taskDueDate, 'day')) {
+          taskCard.addClass('bg-warning text-white');
+        } else if (now.isAfter(taskDueDate)) {
+          taskCard.addClass('bg-danger text-white');
+          deleteButton.addClass('border-light');
+        }
+      }
 
-    return taskCard
+    taskCardBody.append(taskCardTitle, taskCardDescription, taskCardDueDate, deleteButton);
+    taskCard.append(taskCardBody);
+
+    return taskCard;
 }
 
-// Todo: create a function to render the task list and make cards draggable
+// Render the task list and make cards draggable
 function renderTaskList() {
-    // reset task list on refresh
     $('#todo-cards').empty();
     $('#in-progress-cards').empty();
     $('#done-cards').empty();
@@ -46,26 +50,30 @@ function renderTaskList() {
         } else if (taskList[i].status === 'done') {
             $('#done-cards').append(taskCard);
         }
-    };
-    
-    $('.draggable').draggable({
-        revert: 'invalid',
-        stack: 'draggable',
-        cursor: 'move'
-    });
+    }
 
-    
-
+    makeDraggable();
 }
 
-// Todo: create a function to handle adding a new task
-function handleAddTask(event){
+// Make tasks draggable
+function makeDraggable() {
+    $('.draggable').draggable({
+        revert: 'invalid',
+        stack: '.draggable',
+        cursor: 'move',
+        zIndex: 100,
+        opacity: 0.7
+    });
+}
+
+// Handle adding a new task
+function handleAddTask(event) {
     event.preventDefault();
 
     const taskTitle = $('#task-title').val();
     const taskDescription = $('#task-description').val();
     const taskDueDate = $('#task-due-date').val();
-    const Task = {
+    const task = {
         id: generateTaskId(),
         taskTitle,
         taskDescription,
@@ -73,72 +81,62 @@ function handleAddTask(event){
         status: 'todo'
     };
 
-    taskList.push(Task);
+    taskList.push(task);
 
     localStorage.setItem('tasks', JSON.stringify(taskList));
     localStorage.setItem('nextId', JSON.stringify(nextId));
 
-    const taskCard = createTaskCard(Task);
+    renderTaskList();
 
-    $('#todo-cards').append(taskCard);
     $('#task-form')[0].reset();
     $('#formModal').modal('hide');
-
-    renderTaskList();
 }
 
-// Todo: create a function to handle deleting a task
-function handleDeleteTask(event){
+// Handle deleting a task
+function handleDeleteTask(event) {
     event.preventDefault();
 
     const taskCard = $(event.target).closest('.task-card');
     const taskId = taskCard.attr('id');
-    const taskIndex = taskList.findIndex(task => task.id === taskId);
+    const taskIndex = taskList.findIndex(task => task.id == taskId);
 
     if (taskIndex !== -1) {
         taskList.splice(taskIndex, 1);
 
         localStorage.setItem('tasks', JSON.stringify(taskList));
+
+        renderTaskList();
     }
 
     taskCard.remove();
 }
 
-// Todo: create a function to handle dropping a task into a new status lane
+// Handle dropping a task into a new status lane
 function handleDrop(event, ui) {
     const taskId = ui.draggable.attr('id');
-    const newStatus = $(this).attr('id');
+    const newStatus = $(this).attr('id').split('-')[0];
     const taskIndex = taskList.findIndex(task => task.id === taskId);
 
     if (taskIndex !== -1) {
-        const task = taskList[taskIndex];
+        taskList[taskIndex].status = newStatus;
+        localStorage.setItem('tasks', JSON.stringify(taskList));
 
-        task.status = newStatus;
-
-        localStorage.setItem('task', JSON.stringify(taskList));
-
-        ui.draggable.detach();
-
-        $(this).find('.drop-column').append(ui.draggable);
-
-        ui.draggable.draggable('option', 'revert', false);
+        renderTaskList();
     }
+
+    const targetColumn = $(this).find('.drop-column');
+    ui.draggable.detach().appendTo(targetColumn).css({top: 0, left: 0 });
 }
 
-// Todo: when the page loads, render the task list, add event listeners, make lanes droppable, and make the due date field a date picker
+
+// Initialize on page load
 $(document).ready(function () {
-    renderTaskList()
+    renderTaskList();
 
-    $('.draggable').draggable({
-        revert: 'invalid',
-        stack: '.draggable',
-        cursor: 'move'
-    })
-
-    $('.lane').droppable({
-        accept: 'draggable',
+    $('#todo, #in-progress, #done').droppable({
+        accept: '.draggable',
         drop: handleDrop
-    })
+    });
 
     $('#task-form').submit(handleAddTask);
 
